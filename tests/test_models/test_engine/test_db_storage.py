@@ -18,6 +18,7 @@ import json
 import os
 import pep8
 import unittest
+
 DBStorage = db_storage.DBStorage
 classes = {"Amenity": Amenity, "City": City, "Place": Place,
            "Review": Review, "State": State, "User": User}
@@ -25,6 +26,7 @@ classes = {"Amenity": Amenity, "City": City, "Place": Place,
 
 class TestDBStorageDocs(unittest.TestCase):
     """Tests to check the documentation and style of DBStorage class"""
+
     @classmethod
     def setUpClass(cls):
         """Set up for the doc tests"""
@@ -67,9 +69,30 @@ test_db_storage.py'])
             self.assertTrue(len(func[1].__doc__) >= 1,
                             "{:s} method needs a docstring".format(func[0]))
 
+    def test_get(self):
+        """Test get method"""
+        new_state = State(name="Marrakech")
+        self.storage.new(new_state)
+        key = "State.{}".format(new_state.id)
+        result = self.storage.get("State", new_state.id)
+        self.assertTrue(result.id, new_state.id)
+        self.assertIsInstance(result, State)
+
+    def test_count(self):
+        """Test count method"""
+        old_count = self.storage.count("State")
+        new_state1 = State(name="NewYork")
+        self.storage.new(new_state1)
+        new_state2 = State(name="Virginia")
+        self.storage.new(new_state2)
+        new_state3 = State(name="California")
+        self.storage.new(new_state3)
+        self.assertEqual(old_count + 3, self.storage.count("State"))
+
 
 class TestFileStorage(unittest.TestCase):
     """Test the FileStorage class"""
+
     @unittest.skipIf(models.storage_t != 'db', "not testing db storage")
     def test_all_returns_dict(self):
         """Test that all returns a dictionaty"""
