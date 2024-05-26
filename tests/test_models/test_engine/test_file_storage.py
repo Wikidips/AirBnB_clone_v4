@@ -18,6 +18,7 @@ import json
 import os
 import pep8
 import unittest
+
 FileStorage = file_storage.FileStorage
 classes = {"Amenity": Amenity, "BaseModel": BaseModel, "City": City,
            "Place": Place, "Review": Review, "State": State, "User": User}
@@ -25,6 +26,7 @@ classes = {"Amenity": Amenity, "BaseModel": BaseModel, "City": City,
 
 class TestFileStorageDocs(unittest.TestCase):
     """Tests to check the documentation and style of FileStorage class"""
+
     @classmethod
     def setUpClass(cls):
         """Set up for the doc tests"""
@@ -70,6 +72,7 @@ test_file_storage.py'])
 
 class TestFileStorage(unittest.TestCase):
     """Test the FileStorage class"""
+
     @unittest.skipIf(models.storage_t == 'db', "not testing file storage")
     def test_all_returns_dict(self):
         """Test that all returns the FileStorage.__objects attr"""
@@ -113,3 +116,99 @@ class TestFileStorage(unittest.TestCase):
         with open("file.json", "r") as f:
             js = f.read()
         self.assertEqual(json.loads(string), json.loads(js))
+
+
+class TestFileStorageGet(unittest.TestCase):
+    """Tests for the get method of FileStorage class"""
+
+    def setUp(self):
+        """Set up test cases"""
+        self.storage = FileStorage()
+        self.amenity = Amenity()
+        self.base_model = BaseModel()
+        self.city = City()
+        self.place = Place()
+        self.review = Review()
+        self.state = State()
+        self.user = User()
+
+    def test_get_existing_object(self):
+        """Test get method with an existing object"""
+        self.storage.new(self.amenity)
+        self.assertEqual(self.storage.get(Amenity, self.amenity.id), self.amenity)
+
+    def test_get_non_existing_object(self):
+        """Test get method with a non-existing object"""
+        self.assertIsNone(self.storage.get(Amenity, "non_existing_id"))
+
+    def test_get_object_with_wrong_class(self):
+        """Test get method with an object of wrong class"""
+        self.storage.new(self.amenity)
+        self.assertIsNone(self.storage.get(BaseModel, self.amenity.id))
+
+    def setUp(self):
+        """Set up test cases"""
+        self.storage = FileStorage()
+        self.amenity = Amenity()
+        self.base_model = BaseModel()
+        self.city = City()
+        self.place = Place()
+        self.review = Review()
+        self.state = State()
+        self.user = User()
+
+    def test_count_all_objects(self):
+        """Test count method with all objects"""
+        self.storage.new(self.amenity)
+        self.storage.new(self.base_model)
+        self.storage.new(self.city)
+        self.storage.new(self.place)
+        self.storage.new(self.review)
+        self.storage.new(self.state)
+        self.storage.new(self.user)
+        self.assertEqual(self.storage.count(), 7)
+
+    def test_count_objects_of_specific_class(self):
+        """Test count method with objects of a specific class"""
+        self.storage.new(self.amenity)
+        self.storage.new(self.base_model)
+        self.storage.new(self.city)
+        self.storage.new(self.place)
+        self.storage.new(self.review)
+        self.storage.new(self.state)
+        self.storage.new(self.user)
+        self.assertEqual(self.storage.count(Amenity), 1)
+        self.assertEqual(self.storage.count(BaseModel), 1)
+        self.assertEqual(self.storage.count(City), 1)
+        self.assertEqual(self.storage.count(Place), 1)
+        self.assertEqual(self.storage.count(Review), 1)
+        self.assertEqual(self.storage.count(State), 1)
+        self.assertEqual(self.storage.count(User), 1)
+
+    def test_get(self):
+        '''
+            Test if get method retrieves obj requested
+        '''
+        new_state = State(name="NewYork")
+        self.storage.new(new_state)
+        key = "State.{}".format(new_state.id)
+        result = self.storage.get("State", new_state.id)
+        self.assertTrue(result.id, new_state.id)
+        self.assertIsInstance(result, State)
+
+    def test_count(self):
+        '''
+            Test if count method returns expected number of objects
+        '''
+        old_count = self.storage.count("State")
+        new_state1 = State(name="NewYork")
+        self.storage.new(new_state1)
+        new_state2 = State(name="Virginia")
+        self.storage.new(new_state2)
+        new_state3 = State(name="California")
+        self.storage.new(new_state3)
+        self.assertEqual(old_count + 3, self.storage.count("State"))
+
+
+if __name__ == '__main__':
+    unittest.main()
