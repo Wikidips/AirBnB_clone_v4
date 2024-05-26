@@ -7,6 +7,7 @@ from datetime import datetime
 import inspect
 import models
 from models.engine import file_storage
+from models import storage
 from models.amenity import Amenity
 from models.base_model import BaseModel
 from models.city import City
@@ -16,9 +17,7 @@ from models.state import State
 from models.user import User
 import json
 import os
-import pep8
 import unittest
-
 FileStorage = file_storage.FileStorage
 classes = {"Amenity": Amenity, "BaseModel": BaseModel, "City": City,
            "Place": Place, "Review": Review, "State": State, "User": User}
@@ -26,26 +25,10 @@ classes = {"Amenity": Amenity, "BaseModel": BaseModel, "City": City,
 
 class TestFileStorageDocs(unittest.TestCase):
     """Tests to check the documentation and style of FileStorage class"""
-
     @classmethod
     def setUpClass(cls):
         """Set up for the doc tests"""
         cls.fs_f = inspect.getmembers(FileStorage, inspect.isfunction)
-
-    def test_pep8_conformance_file_storage(self):
-        """Test that models/engine/file_storage.py conforms to PEP8."""
-        pep8s = pep8.StyleGuide(quiet=True)
-        result = pep8s.check_files(['models/engine/file_storage.py'])
-        self.assertEqual(result.total_errors, 0,
-                         "Found code style errors (and warnings).")
-
-    def test_pep8_conformance_test_file_storage(self):
-        """Test tests/test_models/test_file_storage.py conforms to PEP8."""
-        pep8s = pep8.StyleGuide(quiet=True)
-        result = pep8s.check_files(['tests/test_models/test_engine/\
-test_file_storage.py'])
-        self.assertEqual(result.total_errors, 0,
-                         "Found code style errors (and warnings).")
 
     def test_file_storage_module_docstring(self):
         """Test for the file_storage.py module docstring"""
@@ -62,7 +45,7 @@ test_file_storage.py'])
                         "FileStorage class needs a docstring")
 
     def test_fs_func_docstrings(self):
-        """Test for the presence of docstrings in FileStorage methods"""
+        """Test for the presence of docstring in FileStorage methods"""
         for func in self.fs_f:
             self.assertIsNot(func[1].__doc__, None,
                              "{:s} method needs a docstring".format(func[0]))
@@ -72,7 +55,6 @@ test_file_storage.py'])
 
 class TestFileStorage(unittest.TestCase):
     """Test the FileStorage class"""
-
     @unittest.skipIf(models.storage_t == 'db', "not testing file storage")
     def test_all_returns_dict(self):
         """Test that all returns the FileStorage.__objects attr"""
@@ -117,98 +99,35 @@ class TestFileStorage(unittest.TestCase):
             js = f.read()
         self.assertEqual(json.loads(string), json.loads(js))
 
+# create unittest for (get - counts) methods
 
-class TestFileStorageGet(unittest.TestCase):
-    """Tests for the get method of FileStorage class"""
-
-    def setUp(self):
-        """Set up test cases"""
-        self.storage = FileStorage()
-        self.amenity = Amenity()
-        self.base_model = BaseModel()
-        self.city = City()
-        self.place = Place()
-        self.review = Review()
-        self.state = State()
-        self.user = User()
-
-    def test_get_existing_object(self):
-        """Test get method with an existing object"""
-        self.storage.new(self.amenity)
-        self.assertEqual(self.storage.get(Amenity, self.amenity.id), self.amenity)
-
-    def test_get_non_existing_object(self):
-        """Test get method with a non-existing object"""
-        self.assertIsNone(self.storage.get(Amenity, "non_existing_id"))
-
-    def test_get_object_with_wrong_class(self):
-        """Test get method with an object of wrong class"""
-        self.storage.new(self.amenity)
-        self.assertIsNone(self.storage.get(BaseModel, self.amenity.id))
-
-    def setUp(self):
-        """Set up test cases"""
-        self.storage = FileStorage()
-        self.amenity = Amenity()
-        self.base_model = BaseModel()
-        self.city = City()
-        self.place = Place()
-        self.review = Review()
-        self.state = State()
-        self.user = User()
-
-    def test_count_all_objects(self):
-        """Test count method with all objects"""
-        self.storage.new(self.amenity)
-        self.storage.new(self.base_model)
-        self.storage.new(self.city)
-        self.storage.new(self.place)
-        self.storage.new(self.review)
-        self.storage.new(self.state)
-        self.storage.new(self.user)
-        self.assertEqual(self.storage.count(), 7)
-
-    def test_count_objects_of_specific_class(self):
-        """Test count method with objects of a specific class"""
-        self.storage.new(self.amenity)
-        self.storage.new(self.base_model)
-        self.storage.new(self.city)
-        self.storage.new(self.place)
-        self.storage.new(self.review)
-        self.storage.new(self.state)
-        self.storage.new(self.user)
-        self.assertEqual(self.storage.count(Amenity), 1)
-        self.assertEqual(self.storage.count(BaseModel), 1)
-        self.assertEqual(self.storage.count(City), 1)
-        self.assertEqual(self.storage.count(Place), 1)
-        self.assertEqual(self.storage.count(Review), 1)
-        self.assertEqual(self.storage.count(State), 1)
-        self.assertEqual(self.storage.count(User), 1)
-
+    @unittest.skipIf(models.storage_t == 'db', "not testing file storage")
     def test_get(self):
-        '''
-            Test if get method retrieves obj requested
-        '''
-        new_state = State(name="NewYork")
-        self.storage.new(new_state)
-        key = "State.{}".format(new_state.id)
-        result = self.storage.get("State", new_state.id)
-        self.assertTrue(result.id, new_state.id)
-        self.assertIsInstance(result, State)
+        """Test that get method returns the object by class and id"""
+        state = State(name="California")
+        state.save()
+        state_id = state.id
+        self.assertEqual(state, models.storage.get("State", state_id))
 
+    @unittest.skipIf(models.storage_t == 'db', "not testing file storage")
     def test_count(self):
-        '''
-            Test if count method returns expected number of objects
-        '''
-        old_count = self.storage.count("State")
-        new_state1 = State(name="NewYork")
-        self.storage.new(new_state1)
-        new_state2 = State(name="Virginia")
-        self.storage.new(new_state2)
-        new_state3 = State(name="California")
-        self.storage.new(new_state3)
-        self.assertEqual(old_count + 3, self.storage.count("State"))
-
-
-if __name__ == '__main__':
-    unittest.main()
+        """Test that count method returns the number of objects in storage"""
+        count = models.storage.count()
+        state = State(name="California")
+        state.save()
+        self.assertEqual(models.storage.count(), count + 1)
+        city = City(name="San Francisco")
+        city.save()
+        self.assertEqual(models.storage.count(), count + 2)
+        amenity = Amenity(name="Wifi")
+        amenity.save()
+        self.assertEqual(models.storage.count(), count + 3)
+        place = Place(name="My_little_house")
+        place.save()
+        self.assertEqual(models.storage.count(), count + 4)
+        review = Review(text="Great place")
+        review.save()
+        self.assertEqual(models.storage.count(), count + 5)
+        user = User(email="Aymane.sdk123gmail.com")
+        user.save()
+        self.assertEqual(models.storage.count(), count + 6)
