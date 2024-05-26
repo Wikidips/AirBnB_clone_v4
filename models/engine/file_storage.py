@@ -1,70 +1,154 @@
 #!/usr/bin/python3
-"""
-Contains the FileStorage class
-"""
+'''
+    Testing the file_storage module.
+'''
 
+import os
+import time
 import json
-from models.amenity import Amenity
+import unittest
+import models
+from models import storage
 from models.base_model import BaseModel
-from models.city import City
-from models.place import Place
-from models.review import Review
 from models.state import State
-from models.user import User
+from models.engine.file_storage import FileStorage
 
-classes = {"Amenity": Amenity, "BaseModel": BaseModel, "City": City,
-           "Place": Place, "Review": Review, "State": State, "User": User}
+db = os.getenv("HBNB_TYPE_STORAGE")
 
 
-class FileStorage:
-    """serializes instances to a JSON file & deserializes back to instances"""
+@unittest.skipIf(db == 'db', "Testing DBstorage only")
+class testFileStorage(unittest.TestCase):
+    '''
+        Testing the FileStorage class
+    '''
 
-    # string - path to the JSON file
-    __file_path = "file.json"
-    # dictionary - empty but will store all objects by <class name>.id
-    __objects = {}
+    def setUp(self):
+        '''
+            Initializing classes
+        '''
+        self.storage = FileStorage()
+        self.my_model = BaseModel()
 
-    def all(self, cls=None):
-        """returns the dictionary __objects"""
-        if cls is not None:
-            new_dict = {}
-            for key, value in self.__objects.items():
-                if cls == value.__class__ or cls == value.__class__.__name__:
-                    new_dict[key] = value
-            return new_dict
-        return self.__objects
+    def tearDown(self):
+        '''
+            Cleaning up.
+        '''
 
-    def new(self, obj):
-        """sets in __objects the obj with key <obj class name>.id"""
-        if obj is not None:
-            key = obj.__class__.__name__ + "." + obj.id
-            self.__objects[key] = obj
-
-    def save(self):
-        """serializes __objects to the JSON file (path: __file_path)"""
-        json_objects = {}
-        for key in self.__objects:
-            json_objects[key] = self.__objects[key].to_dict()
-        with open(self.__file_path, 'w') as f:
-            json.dump(json_objects, f)
-
-    def reload(self):
-        """deserializes the JSON file to __objects"""
         try:
-            with open(self.__file_path, 'r') as f:
-                jo = json.load(f)
-            for key in jo:
-                self.__objects[key] = classes[jo[key]["__class__"]](**jo[key])
-        except:
+            os.remove("file.json")
+        except FileNotFoundError:
             pass
 
-    def delete(self, obj=None):
-        """delete obj from __objects if it’s inside"""
-        if obj is not None:
-            key = obj.__class__.__name__ + '.' + obj.id
-            if key in self.__objects:
-                del self.__objects[key]
+    def test_all_return_type(self):
+        '''
+            Tests the data type of the return value of the all method.
+        '''
+        storage_all = self.storage.all()
+        self.assertIsInstance(storage_all, dict)
 
-    def close(self):
-        """call reload() method for deserializing the JSON file to objects"""
-        self.reload()
+    def test_new_method(self):
+        '''
+            Tests that the new method sets the right key and value pair
+            in the FileStorage.__object attribute
+        '''
+        self.storage.new(self.my_model)
+        key = str(self.my_model.__class__.__name__ + "." + self.my_model.id)
+        self.assertTrue(key in self.storage._FileStorage__objects)
+
+    def test_objects_value_type(self):
+        '''
+            Tests that the type of value contained in the FileStorage.__object
+            is of type obj.__class__.__name__
+        '''
+        self.storage.new(self.my_model)
+        key = str(self.my_model.__class__.__name__ + "." + self.my_model.id)
+        val = self.storage._FileStorage__objects[key]
+        self.assertIsInstance(self.my_model, type(val))
+
+    def test_save_file_exists(self):
+        '''
+            Tests that a file gets created with the name file.json
+        '''
+        self.storage.save()
+        self.assertTrue(os.path.isfile("file.json"))
+
+    def test_save_file_read(self):
+        '''
+            Testing the contents of the files inside the file.json
+        '''
+        self.storage.save()
+        self.storage.new(self.my_model)
+
+        with open("file.json", encoding="UTF8") as fd:
+            content = json.load(fd)
+
+        self.assertTrue(type(content) is dict)
+
+    def test_the_type_file_content(self):
+        '''
+            testing the type of the contents inside the file.
+        '''
+        self.storage.save()
+        self.storage.new(self.my_model)
+
+        with open("file.json", encoding="UTF8") as fd:
+            content = fd.read()
+
+        self.assertIsInstance(content, str)
+
+    def test_reaload_without_file(self):
+        '''
+            Tests that nothing happens when file.json does not exists
+            and reload is called
+        '''
+
+        try:
+            self.storage.reload()
+            self.assertTrue(True)
+        except Exception:
+            self.assertTrue(False)
+
+    def test_delete(self):
+        '''
+            Test delete method
+        '''
+        fs = FileStorage()
+        new_state = State()
+        fs.new(new_state)
+        state_id = new_state.id
+        fs.save()
+        fs.delete(new_state)
+        with open("file.json", encoding="UTF-8") as fd:
+            state_dict = json.load(fd)
+        for k, v in state_dict.items():
+            self.assertFalse(state_id == k.split('.')[1])
+
+    def test_model_storage(self):
+        '''
+            Test State model in Filestorage
+        '''
+        self.assertTrue(isinstance(storage, FileStorage))
+
+    def test_get(self):
+        '''
+            Test if get method retrieves obj requested
+        '''
+        new_state = State(name="NewYork")
+        storage.new(new_state)
+        key = "State.{}".format(new_state.id)
+        result = storage.get("State", new_state.id)
+        self.assertTrue(result.id, new_state.id)
+        self.assertIsInstance(result, State)
+
+    def test_count(self):
+        '''
+            Test if count method returns expected number of objects
+        '''
+        old_count = storage.count("State")
+        new_state1 = State(name="NewYork")
+        storage.new(new_state1)
+        new_state2 = State(name="Virginia")
+        storage.new(new_state2)
+        new_state3 = State(name="California")
+        storage.new(new_state3)
+        self.assertEqual(old_count + 3, storage.count("State"))
